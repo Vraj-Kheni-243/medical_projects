@@ -174,6 +174,10 @@ EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '20'))
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'webmaster@localhost')
 SERVER_EMAIL = os.getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
+print("EMAIL_HOST =", EMAIL_HOST)   
+print("EMAIL_HOST_USER =", EMAIL_HOST_USER)
+print("EMAIL_BACKEND =", EMAIL_BACKEND)
+
 # Full public URL used in password reset emails, for example:
 # https://medical-projects.onrender.com
 PUBLIC_SITE_URL = os.getenv('PUBLIC_SITE_URL', '').strip().rstrip('/')
