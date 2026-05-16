@@ -95,30 +95,50 @@ class VrajCarePasswordResetView(PasswordResetView):
                 'Email is not configured yet. The reset link was printed in the server terminal instead of being sent to an inbox.'
             )
 
+        # Determine protocol and domain for the reset link.
+        # PUBLIC_SITE_URL takes priority (needed for Render where the proxy
+        # terminates TLS and request.is_secure() may return False).
+        if settings.PUBLIC_SITE_URL:
+            public_site = urlparse(settings.PUBLIC_SITE_URL)
+            use_https = public_site.scheme == 'https'
+            domain_override = public_site.netloc
+        else:
+            # Fall back to the forwarded proto header set by SECURE_PROXY_SSL_HEADER.
+            use_https = self.request.is_secure()
+            domain_override = None
+
+        opts = {
+            'use_https': use_https,
+            'token_generator': self.token_generator,
+            'from_email': self.from_email,
+            'email_template_name': self.email_template_name,
+            'subject_template_name': self.subject_template_name,
+            'request': self.request,
+            'html_email_template_name': self.html_email_template_name,
+            'extra_email_context': self.extra_email_context,
+        }
+        if domain_override:
+            opts['domain_override'] = domain_override
+
+        logger.info(
+            'Password reset requested for email=%s use_https=%s domain=%s',
+            form.cleaned_data.get('email'),
+            use_https,
+            domain_override,
+        )
+
         try:
-            opts = {
-                'use_https': self.request.is_secure(),
-                'token_generator': self.token_generator,
-                'from_email': self.from_email,
-                'email_template_name': self.email_template_name,
-                'subject_template_name': self.subject_template_name,
-                'request': self.request,
-                'html_email_template_name': self.html_email_template_name,
-                'extra_email_context': self.extra_email_context,
-            }
-
-            if settings.PUBLIC_SITE_URL:
-                public_site = urlparse(settings.PUBLIC_SITE_URL)
-                opts['domain_override'] = public_site.netloc
-                opts['use_https'] = public_site.scheme == 'https'
-
             form.save(**opts)
+            logger.info('Password reset email dispatched successfully.')
             return redirect(self.get_success_url())
         except Exception:
-            logger.exception('Password reset email could not be sent.')
+            logger.exception(
+                'Password reset email FAILED — BREVO_API_KEY or anymail error. '
+                'Check Render env vars and anymail logs above.'
+            )
             messages.error(
                 self.request,
-                'Password reset email could not be sent. Please check the SMTP email settings and try again.'
+                'Password reset email could not be sent. Please try again later.'
             )
             return self.form_invalid(form)
 
