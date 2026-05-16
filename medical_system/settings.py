@@ -160,23 +160,18 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
-EMAIL_HOST_USER = 'ab678f001@smtp-brevo.com'
-EMAIL_HOST_PASSWORD = 'QFVjcERJS9fL8g2d'
+INSTALLED_APPS += ['anymail']
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = "anymail.backends.brevo.EmailBackend"
 
-EMAIL_HOST = 'smtp-relay.brevo.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
-EMAIL_TIMEOUT = 20
+ANYMAIL = {
+    "BREVO_API_KEY": os.getenv("BREVO_API_KEY"),
+}
 
-DEFAULT_FROM_EMAIL = 'khenivraj2007@gmail.com'
+DEFAULT_FROM_EMAIL = "khenivraj2007@gmail.com"
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
-print("EMAIL_HOST =", EMAIL_HOST)
-print("EMAIL_HOST_USER =", EMAIL_HOST_USER)
-print("EMAIL_BACKEND =", EMAIL_BACKEND)
+
 
 # Full public URL used in password reset emails, for example:
 # https://medical-projects.onrender.com
