@@ -88,6 +88,29 @@ class VrajCarePasswordResetView(PasswordResetView):
     success_url = reverse_lazy('password_reset_done')
     from_email = settings.DEFAULT_FROM_EMAIL
 
+    def _get_single_active_user(self, email):
+        """
+        Return exactly one active user for the given email.
+        If multiple accounts share the same email (e.g. leftover test accounts),
+        prefer the most recently created one so only a single reset email is sent.
+        Returns None if no active user exists for that email.
+        """
+        users = list(
+            User.objects.filter(
+                email__iexact=email,
+                is_active=True,
+            ).order_by('-date_joined')
+        )
+        if not users:
+            return None
+        if len(users) > 1:
+            logger.warning(
+                'Multiple active accounts (%d) share email=%s — '
+                'sending reset only to the most recently created account (pk=%s).',
+                len(users), email, users[0].pk,
+            )
+        return users[0]
+
     def form_valid(self, form):
         if settings.EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
             messages.warning(
@@ -96,16 +119,27 @@ class VrajCarePasswordResetView(PasswordResetView):
             )
 
         # Determine protocol and domain for the reset link.
-        # PUBLIC_SITE_URL takes priority (needed for Render where the proxy
-        # terminates TLS and request.is_secure() may return False).
         if settings.PUBLIC_SITE_URL:
             public_site = urlparse(settings.PUBLIC_SITE_URL)
             use_https = public_site.scheme == 'https'
             domain_override = public_site.netloc
         else:
-            # Fall back to the forwarded proto header set by SECURE_PROXY_SSL_HEADER.
             use_https = self.request.is_secure()
             domain_override = None
+
+        email = form.cleaned_data.get('email', '')
+        user = self._get_single_active_user(email)
+
+        logger.info(
+            'Password reset requested for email=%s use_https=%s domain=%s matched_user_pk=%s',
+            email, use_https, domain_override,
+            user.pk if user else None,
+        )
+
+        # No active account — still redirect to done (security: don't reveal existence)
+        if user is None:
+            logger.info('No active user found for email=%s — skipping send.', email)
+            return redirect(self.get_success_url())
 
         opts = {
             'use_https': use_https,
@@ -120,16 +154,14 @@ class VrajCarePasswordResetView(PasswordResetView):
         if domain_override:
             opts['domain_override'] = domain_override
 
-        logger.info(
-            'Password reset requested for email=%s use_https=%s domain=%s',
-            form.cleaned_data.get('email'),
-            use_https,
-            domain_override,
-        )
-
         try:
+            # Pass a queryset containing only this one user so Django's
+            # PasswordResetForm.save() loop sends exactly one email.
+            from django.contrib.auth.models import User as AuthUser
+            single_user_qs = AuthUser.objects.filter(pk=user.pk)
+            form.users_cache = single_user_qs  # override the cached queryset
             form.save(**opts)
-            logger.info('Password reset email dispatched successfully.')
+            logger.info('Password reset email dispatched successfully to pk=%s.', user.pk)
             return redirect(self.get_success_url())
         except Exception:
             logger.exception(
