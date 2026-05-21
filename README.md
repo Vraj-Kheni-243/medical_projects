@@ -27,3 +27,18 @@ prints reset links in the terminal.
 
 Set `PUBLIC_SITE_URL` to the website address that users can open from their
 phone. Do not use `localhost` or `127.0.0.1` for mobile password reset emails.
+
+## Render Static Files
+
+Use this build command on Render so Django collects admin, Jazzmin, and project
+static files before the app starts:
+
+```bash
+pip install -r requirements.txt && python manage.py collectstatic --noinput
+```
+
+Use this start command:
+
+```bash
+gunicorn medical_system.wsgi:application
+```
