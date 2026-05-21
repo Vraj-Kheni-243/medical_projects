@@ -28,13 +28,23 @@ prints reset links in the terminal.
 Set `PUBLIC_SITE_URL` to the website address that users can open from their
 phone. Do not use `localhost` or `127.0.0.1` for mobile password reset emails.
 
-## Render Static Files
+## Render Deployment
 
-Use this build command on Render so Django collects admin, Jazzmin, and project
-static files before the app starts:
+Set these environment variables on Render to create an admin account in the
+production PostgreSQL database:
+
+```text
+DJANGO_SUPERUSER_USERNAME=your-admin-username
+DJANGO_SUPERUSER_EMAIL=your-email@example.com
+DJANGO_SUPERUSER_PASSWORD=your-secure-password
+```
+
+Use this build command on Render so Django installs dependencies, applies
+migrations, creates/updates the production admin account, and collects admin,
+Jazzmin, and project static files before the app starts:
 
 ```bash
-pip install -r requirements.txt && python manage.py collectstatic --noinput
+pip install -r requirements.txt && python manage.py migrate && python manage.py create_render_superuser && python manage.py collectstatic --noinput
 ```
 
 Use this start command:
@@ -42,3 +52,8 @@ Use this start command:
 ```bash
 gunicorn medical_system.wsgi:application
 ```
+
+If Render says `Unknown command: 'create_render_superuser'`, the deployment is
+missing the `accounts/management/commands/create_render_superuser.py` file.
+Commit and push the `accounts/management/` directory to the same branch Render
+deploys, then redeploy.
