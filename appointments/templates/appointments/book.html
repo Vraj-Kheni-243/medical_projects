@@ -1,55 +1,218 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% block title %}Book Appointment — VRAJ Care{% endblock %}
+
 {% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
 
-<div class="row justify-content-center align-items-center" style="min-height:65vh;">
-    <div class="col-lg-6">
+    <div class="bg-white rounded-4 shadow-sm p-4 p-md-5 border border-light animate">
+      <div class="d-flex align-items-center mb-4">
+        <a href="{% url 'patient_dashboard' %}" class="btn btn-outline-secondary btn-sm me-3">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <div>
+          <h4 class="fw-bold mb-0">Book an Appointment</h4>
+          <p class="text-muted small mb-0">Select a doctor, date, and available time slot</p>
+        </div>
+      </div>
 
-        <div class="bg-white shadow rounded-4 p-5 text-center animate">
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors.0 }}</div>
+      {% endif %}
 
-            <h2 class="fw-bold mb-3">Book Appointment</h2>
-            <p class="text-secondary mb-4">
-                Select a doctor and choose your preferred appointment date.
-            </p>
+      <form method="post" id="bookingForm" novalidate>
+        {% csrf_token %}
 
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags|default:'info' }} text-start">
-                        {{ message }}
+        <!-- DOCTOR CARDS -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Select Doctor</label>
+          <div class="row g-3" id="doctorCards">
+            {% for doctor in doctors %}
+            <div class="col-md-6">
+              <label class="doctor-card d-block border rounded-3 p-3 cursor-pointer"
+                     style="cursor:pointer;transition:all .2s;"
+                     for="doc_{{ doctor.id }}">
+                <input type="radio" name="doctor" value="{{ doctor.id }}"
+                       id="doc_{{ doctor.id }}" class="d-none doctor-radio"
+                       {% if form.doctor.value == doctor.id|stringformat:"s" %}checked{% endif %}>
+                <div class="d-flex align-items-center gap-3">
+                  {% if doctor.profile_picture %}
+                    <img src="{{ doctor.profile_picture.url }}" class="rounded-circle"
+                         style="width:52px;height:52px;object-fit:cover;" alt="">
+                  {% else %}
+                    <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center flex-shrink-0"
+                         style="width:52px;height:52px;font-size:22px;color:#2563eb;">
+                      <i class="bi bi-person-fill"></i>
                     </div>
-                {% endfor %}
-            {% endif %}
-
-            <form method="post">
-                {% csrf_token %}
-
-                <!-- Doctor -->
-                <div class="mb-3 text-start">
-                    <label class="form-label fw-semibold">Select Doctor</label>
-                    <select name="doctor" class="form-control" required>
-                        <option value="">-- Choose Doctor --</option>
-                        {% for doctor in doctors %}
-                            <option value="{{ doctor.id }}">
-                                Dr. {{ doctor.display_name }} ({{ doctor.specialization }})
-                            </option>
-                        {% endfor %}
-                    </select>
+                  {% endif %}
+                  <div class="flex-grow-1 min-w-0">
+                    <div class="fw-bold">Dr. {{ doctor.display_name }}</div>
+                    <div class="text-muted small">{{ doctor.specialization }}</div>
+                    <div class="d-flex gap-2 mt-1 flex-wrap">
+                      {% if doctor.experience_years %}
+                        <span class="badge bg-light text-dark border">
+                          <i class="bi bi-briefcase me-1"></i>{{ doctor.experience_years }} yrs
+                        </span>
+                      {% endif %}
+                      {% if doctor.consultation_fee > 0 %}
+                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                          ₹{{ doctor.consultation_fee }}
+                        </span>
+                      {% endif %}
+                      {% if doctor.rating > 0 %}
+                        <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">
+                          <i class="bi bi-star-fill me-1"></i>{{ doctor.rating }}
+                        </span>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="check-icon text-primary fs-5 opacity-0">
+                    <i class="bi bi-check-circle-fill"></i>
+                  </div>
                 </div>
-
-                <!-- Date -->
-                <div class="mb-4 text-start">
-                    <label class="form-label fw-semibold">Appointment Date</label>
-                    <input type="date" name="date" class="form-control" min="{% now 'Y-m-d' %}" required>
-                </div>
-
-                <!-- Button -->
-                <button type="submit" class="btn btn-main w-100">
-                    Confirm Appointment
-                </button>
-            </form>
-
+              </label>
+            </div>
+            {% empty %}
+              <div class="col-12">
+                <p class="text-muted">No doctors available at the moment.</p>
+              </div>
+            {% endfor %}
+          </div>
+          {% if form.doctor.errors %}
+            <div class="text-danger small mt-1">{{ form.doctor.errors.0 }}</div>
+          {% endif %}
         </div>
 
-    </div>
-</div>
+        <!-- DATE -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold" for="id_date">Appointment Date</label>
+          <input type="date" name="date" id="id_date" class="form-control"
+                 min="{% now 'Y-m-d' %}"
+                 value="{{ form.date.value|default:'' }}" required>
+          {% if form.date.errors %}
+            <div class="text-danger small mt-1">{{ form.date.errors.0 }}</div>
+          {% endif %}
+        </div>
 
+        <!-- TIME SLOT -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Available Time Slots</label>
+          <div id="slotContainer">
+            <p class="text-muted small" id="slotHint">
+              <i class="bi bi-info-circle me-1"></i>Select a doctor and date to see available slots.
+            </p>
+            <div id="slotGrid" class="d-flex flex-wrap gap-2"></div>
+            <input type="hidden" name="time_slot" id="id_time_slot" value="{{ form.time_slot.value|default:'' }}">
+          </div>
+          {% if form.time_slot.errors %}
+            <div class="text-danger small mt-1">{{ form.time_slot.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <!-- PATIENT NOTES -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Reason for Visit <span class="text-muted fw-normal">(optional)</span></label>
+          {{ form.patient_notes }}
+        </div>
+
+        <button type="submit" class="btn btn-main w-100 py-2" id="submitBtn" disabled>
+          <i class="bi bi-calendar-check me-2"></i>Confirm Appointment
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const SLOTS_URL = "{% url 'available_slots' %}";
+let selectedDoctor = null;
+let selectedDate = null;
+let selectedSlot = null;
+
+// Doctor card selection
+document.querySelectorAll('.doctor-radio').forEach(radio => {
+  radio.addEventListener('change', function () {
+    document.querySelectorAll('.doctor-card').forEach(c => {
+      c.style.borderColor = '';
+      c.style.background = '';
+      c.querySelector('.check-icon').style.opacity = '0';
+    });
+    const card = this.closest('.doctor-card');
+    card.style.borderColor = '#2563eb';
+    card.style.background = '#eef5ff';
+    card.querySelector('.check-icon').style.opacity = '1';
+    selectedDoctor = this.value;
+    fetchSlots();
+  });
+});
+
+document.getElementById('id_date').addEventListener('change', function () {
+  selectedDate = this.value;
+  fetchSlots();
+});
+
+function fetchSlots() {
+  const grid = document.getElementById('slotGrid');
+  const hint = document.getElementById('slotHint');
+  grid.innerHTML = '';
+  selectedSlot = null;
+  document.getElementById('id_time_slot').value = '';
+  updateSubmit();
+
+  if (!selectedDoctor || !selectedDate) return;
+
+  hint.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading slots…';
+
+  fetch(`${SLOTS_URL}?doctor_id=${selectedDoctor}&date=${selectedDate}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.slots || data.slots.length === 0) {
+        hint.innerHTML = '<i class="bi bi-calendar-x me-1 text-danger"></i>No available slots for this date.';
+        return;
+      }
+      hint.innerHTML = '';
+      data.slots.forEach(slot => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-outline-primary btn-sm slot-btn';
+        btn.textContent = slot.label;
+        btn.dataset.value = slot.value;
+        btn.addEventListener('click', function () {
+          document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('active', 'btn-primary'));
+          this.classList.add('active', 'btn-primary');
+          this.classList.remove('btn-outline-primary');
+          selectedSlot = this.dataset.value;
+          document.getElementById('id_time_slot').value = selectedSlot;
+          updateSubmit();
+        });
+        grid.appendChild(btn);
+      });
+    })
+    .catch(() => {
+      hint.innerHTML = '<i class="bi bi-exclamation-triangle me-1 text-warning"></i>Could not load slots. Please try again.';
+    });
+}
+
+function updateSubmit() {
+  document.getElementById('submitBtn').disabled = !(selectedDoctor && selectedDate && selectedSlot);
+}
+
+// Restore state if form was re-submitted with errors
+(function () {
+  const docVal = document.querySelector('.doctor-radio:checked');
+  if (docVal) {
+    selectedDoctor = docVal.value;
+    const card = docVal.closest('.doctor-card');
+    card.style.borderColor = '#2563eb';
+    card.style.background = '#eef5ff';
+    card.querySelector('.check-icon').style.opacity = '1';
+  }
+  const dateVal = document.getElementById('id_date').value;
+  if (dateVal) selectedDate = dateVal;
+  if (selectedDoctor && selectedDate) fetchSlots();
+})();
+</script>
 {% endblock %}

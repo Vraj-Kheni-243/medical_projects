@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.views import PasswordResetView
 from django.conf import settings
@@ -11,75 +12,115 @@ from django.views import View
 import logging
 from urllib.parse import urlparse
 
-from .forms import SimpleSetPasswordForm, VisibleFailurePasswordResetForm
-
+from .forms import SimpleSetPasswordForm, VisibleFailurePasswordResetForm, PatientProfileForm
+from .models import PatientProfile
 
 logger = logging.getLogger(__name__)
 
 
 # ================= REGISTER =================
 def register(request):
-    if request.method == "POST":
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password1 = request.POST.get('password1')
-        password2 = request.POST.get('password2')
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        password1 = request.POST.get('password1', '')
+        password2 = request.POST.get('password2', '')
 
         if not username or not email or not password1 or not password2:
-            messages.error(request, "All fields are required")
+            messages.error(request, 'All fields are required.')
             return redirect('register')
 
         if password1 != password2:
-            messages.error(request, "Passwords do not match")
+            messages.error(request, 'Passwords do not match.')
             return redirect('register')
 
         if User.objects.filter(username=username).exists():
-            messages.error(request, "Username already exists")
+            messages.error(request, 'Username already exists.')
             return redirect('register')
 
         if User.objects.filter(email=email).exists():
-            messages.error(request, "Email already registered")
+            messages.error(request, 'Email already registered.')
             return redirect('register')
 
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password1
-        )
-        user.save()
-
-        messages.success(request, "Account created successfully. Please login.")
+        user = User.objects.create_user(username=username, email=email, password=password1)
+        messages.success(request, 'Account created successfully. Please login.')
         return redirect('login')
 
-    return render(request, "accounts/register.html")
+    return render(request, 'accounts/register.html')
 
 
 # ================= LOGIN =================
 def user_login(request):
-    if request.method == "POST":
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-
+    if request.method == 'POST':
+        username = request.POST.get('username', '')
+        password = request.POST.get('password', '')
         user = authenticate(request, username=username, password=password)
-
         if user is not None:
             login(request, user)
-            return redirect('book_appointment')
-
-        else:
-            messages.error(request, "Invalid username or password")
-            return redirect('login')
-
-    return render(request, "accounts/login.html")
+            next_url = request.GET.get('next', '')
+            return redirect(next_url if next_url else 'patient_dashboard')
+        messages.error(request, 'Invalid username or password.')
+        return redirect('login')
+    return render(request, 'accounts/login.html')
 
 
 # ================= LOGOUT =================
 def user_logout(request):
     logout(request)
-    request.session.flush() 
+    request.session.flush()
     return redirect('/')
 
 
+# ================= PATIENT DASHBOARD =================
+@login_required
+def patient_dashboard(request):
+    from appointments.models import Appointment
+    from django.utils import timezone
+
+    profile, _ = PatientProfile.objects.get_or_create(user=request.user)
+    all_appointments = (
+        Appointment.objects
+        .filter(patient=request.user)
+        .select_related('doctor__user')
+        .order_by('-date', '-time_slot')
+    )
+    today = timezone.localdate()
+    upcoming = all_appointments.filter(date__gte=today, status__in=['Pending', 'Approved'])
+    past = all_appointments.filter(date__lt=today)
+    pending_count = all_appointments.filter(status='Pending').count()
+    approved_count = all_appointments.filter(status='Approved').count()
+    rejected_count = all_appointments.filter(status='Rejected').count()
+
+    return render(request, 'accounts/patient_dashboard.html', {
+        'profile': profile,
+        'upcoming_appointments': upcoming,
+        'past_appointments': past,
+        'all_appointments': all_appointments,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
+        'total_count': all_appointments.count(),
+    })
+
+
+# ================= EDIT PROFILE =================
+@login_required
+def edit_profile(request):
+    profile, _ = PatientProfile.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        form = PatientProfileForm(request.user, request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Profile updated successfully.')
+            return redirect('patient_dashboard')
+    else:
+        form = PatientProfileForm(request.user, instance=profile)
+
+    return render(request, 'accounts/edit_profile.html', {'form': form})
+
+
+# ================= PASSWORD RESET =================
 class VrajCarePasswordResetView(PasswordResetView):
     form_class = VisibleFailurePasswordResetForm
     template_name = 'accounts/password_reset.html'
@@ -89,24 +130,15 @@ class VrajCarePasswordResetView(PasswordResetView):
     from_email = settings.DEFAULT_FROM_EMAIL
 
     def _get_single_active_user(self, email):
-        """
-        Return exactly one active user for the given email.
-        If multiple accounts share the same email (e.g. leftover test accounts),
-        prefer the most recently created one so only a single reset email is sent.
-        Returns None if no active user exists for that email.
-        """
         users = list(
-            User.objects.filter(
-                email__iexact=email,
-                is_active=True,
-            ).order_by('-date_joined')
+            User.objects.filter(email__iexact=email, is_active=True).order_by('-date_joined')
         )
         if not users:
             return None
         if len(users) > 1:
             logger.warning(
                 'Multiple active accounts (%d) share email=%s — '
-                'sending reset only to the most recently created account (pk=%s).',
+                'sending reset only to the most recently created (pk=%s).',
                 len(users), email, users[0].pk,
             )
         return users[0]
@@ -115,10 +147,9 @@ class VrajCarePasswordResetView(PasswordResetView):
         if settings.EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
             messages.warning(
                 self.request,
-                'Email is not configured yet. The reset link was printed in the server terminal instead of being sent to an inbox.'
+                'Email is not configured. The reset link was printed in the server terminal.',
             )
 
-        # Determine protocol and domain for the reset link.
         if settings.PUBLIC_SITE_URL:
             public_site = urlparse(settings.PUBLIC_SITE_URL)
             use_https = public_site.scheme == 'https'
@@ -132,11 +163,9 @@ class VrajCarePasswordResetView(PasswordResetView):
 
         logger.info(
             'Password reset requested for email=%s use_https=%s domain=%s matched_user_pk=%s',
-            email, use_https, domain_override,
-            user.pk if user else None,
+            email, use_https, domain_override, user.pk if user else None,
         )
 
-        # No active account — still redirect to done (security: don't reveal existence)
         if user is None:
             logger.info('No active user found for email=%s — skipping send.', email)
             return redirect(self.get_success_url())
@@ -155,23 +184,14 @@ class VrajCarePasswordResetView(PasswordResetView):
             opts['domain_override'] = domain_override
 
         try:
-            # Pass a queryset containing only this one user so Django's
-            # PasswordResetForm.save() loop sends exactly one email.
             from django.contrib.auth.models import User as AuthUser
-            single_user_qs = AuthUser.objects.filter(pk=user.pk)
-            form.users_cache = single_user_qs  # override the cached queryset
+            form.users_cache = AuthUser.objects.filter(pk=user.pk)
             form.save(**opts)
             logger.info('Password reset email dispatched successfully to pk=%s.', user.pk)
             return redirect(self.get_success_url())
         except Exception:
-            logger.exception(
-                'Password reset email FAILED — BREVO_API_KEY or anymail error. '
-                'Check Render env vars and anymail logs above.'
-            )
-            messages.error(
-                self.request,
-                'Password reset email could not be sent. Please try again later.'
-            )
+            logger.exception('Password reset email FAILED.')
+            messages.error(self.request, 'Password reset email could not be sent. Please try again later.')
             return self.form_invalid(form)
 
 
@@ -198,32 +218,22 @@ class VrajCarePasswordResetConfirmView(View):
 
     def get(self, request, *args, **kwargs):
         form = SimpleSetPasswordForm(self.user) if self.validlink else None
-        return render(request, self.template_name, {
-            'form': form,
-            'validlink': self.validlink,
-        })
+        return render(request, self.template_name, {'form': form, 'validlink': self.validlink})
 
     def post(self, request, *args, **kwargs):
         if not self.validlink:
             messages.error(request, 'This password reset link is invalid or has expired.')
             return render(request, self.template_name, {
-                'form': None,
-                'validlink': False,
+                'form': None, 'validlink': False,
                 'reset_error': 'This password reset link is invalid or has expired.',
             })
-
         form = SimpleSetPasswordForm(self.user, request.POST)
         if form.is_valid():
             form.save()
             messages.success(request, 'Your password has been changed. You can login now.')
             return render(request, 'accounts/password_reset_complete.html')
-
-        messages.error(
-            request,
-            'Password was not changed. Please fix the password errors shown below.'
-        )
+        messages.error(request, 'Password was not changed. Please fix the errors below.')
         return render(request, self.template_name, {
-            'form': form,
-            'validlink': True,
+            'form': form, 'validlink': True,
             'reset_error': 'Password was not changed. Check both password boxes below.',
         })

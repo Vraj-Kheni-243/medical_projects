@@ -5,215 +5,164 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#2563eb">
-    <title>VRAJ Care | Doctor Appointment</title>
+    <title>{% block title %}VRAJ Care | Doctor Appointment{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
-
-    <!-- Bootstrap -->
+    <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <style>
         :root {
-            --primary-blue: #3b82f6;
-            --medium-blue: #2563eb;
-            --light-blue: #eef5ff;
+            --primary: #2563eb;
+            --primary-light: #3b82f6;
+            --primary-bg: #eef5ff;
             --border-light: #dbeafe;
             --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --sidebar-width: 260px;
         }
 
         body {
-            background-color: var(--light-blue);
+            background-color: var(--primary-bg);
             color: var(--text-dark);
             font-family: 'Nunito', sans-serif;
         }
 
-        h1, h2, h3, h4, h5 {
-            font-family: 'Poppins', sans-serif;
-            color: var(--medium-blue);
-        }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Poppins', sans-serif; }
 
-        /* NAVBAR */
+        /* ── NAVBAR ── */
         .navbar {
-            background: #ffffff;
+            background: #fff;
             border-bottom: 1px solid var(--border-light);
-            padding: 18px 80px;
+            padding: 14px 40px;
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            box-shadow: 0 1px 8px rgba(37,99,235,.07);
         }
-
         .brand-logo {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 18px;
-            margin-right: 12px;
-        }
-
-        .navbar-brand {
-            font-weight: 700;
-            font-size: 24px;
-            color: var(--medium-blue);
-            display: flex;
-            align-items: center;
-        }
-
-        .nav-link {
-            color: var(--text-dark);
-            font-weight: 600;
-            margin-left: 30px;
-        }
-
-        .nav-link:hover {
-            color: var(--medium-blue);
-        }
-
-        .btn-main {
-            background: var(--medium-blue);
-            color: #ffffff;
+            width: 40px; height: 40px;
             border-radius: 10px;
-            padding: 12px 26px;
-            border: none;
-            font-weight: 600;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 700; font-size: 17px;
+            margin-right: 10px; flex-shrink: 0;
         }
-
-        .page-content {
-            padding: 80px 100px;
+        .navbar-brand {
+            font-weight: 700; font-size: 22px;
+            color: var(--primary); display: flex; align-items: center;
         }
-
-        @media (max-width: 768px) {
-            .navbar {
-                align-items: flex-start !important;
-                gap: 16px;
-                padding: 16px;
-            }
-
-            .navbar-brand {
-                font-size: 20px;
-            }
-
-            .navbar > div {
-                flex-wrap: wrap;
-                gap: 10px;
-                width: 100%;
-            }
-
-            .nav-link {
-                margin-left: 0;
-                margin-right: 12px !important;
-            }
-
-            .btn-main,
-            .btn-outline-primary {
-                padding: 9px 14px;
-                font-size: 14px;
-            }
-
-            .page-content {
-                padding: 32px 14px;
-            }
+        .nav-link {
+            color: var(--text-dark); font-weight: 600;
+            padding: 6px 14px; border-radius: 8px;
+            transition: background .15s;
         }
+        .nav-link:hover { background: var(--primary-bg); color: var(--primary); }
+        .btn-main {
+            background: var(--primary); color: #fff;
+            border-radius: 8px; padding: 8px 20px;
+            border: none; font-weight: 600; font-size: 14px;
+            transition: background .15s;
+        }
+        .btn-main:hover { background: #1d4ed8; color: #fff; }
 
-        /* Animation */
+        /* ── PAGE CONTENT ── */
+        .page-content { padding: 36px 40px; }
+
+        /* ── CARDS ── */
+        .card-stat {
+            background: #fff; border-radius: 14px;
+            padding: 22px 24px; border: 1px solid var(--border-light);
+            box-shadow: 0 2px 8px rgba(37,99,235,.06);
+        }
+        .card-stat .stat-icon {
+            width: 48px; height: 48px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; margin-bottom: 12px;
+        }
+        .card-stat .stat-value { font-size: 28px; font-weight: 700; font-family: 'Poppins', sans-serif; }
+        .card-stat .stat-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+        /* ── BADGES ── */
+        .badge-pending  { background: #fef3c7; color: #92400e; }
+        .badge-approved { background: #dcfce7; color: #166534; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-cancelled{ background: #f1f5f9; color: #475569; }
+        .badge-completed{ background: #dbeafe; color: #1e40af; }
+
+        /* ── ANIMATIONS ── */
         .animate {
-            opacity: 0;
-            transform: translateY(12px);
-            animation: fadeUp 0.6s ease-out forwards;
+            opacity: 0; transform: translateY(14px);
+            animation: fadeUp .5s ease-out forwards;
         }
+        .delay-1 { animation-delay: .1s; }
+        .delay-2 { animation-delay: .2s; }
+        .delay-3 { animation-delay: .3s; }
+        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
 
-        .delay-1 { animation-delay: 0.15s; }
-        .delay-2 { animation-delay: 0.3s; }
-
-        @keyframes fadeUp {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            .navbar { padding: 12px 16px; }
+            .page-content { padding: 20px 14px; }
         }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
-
 <body>
 
-<!-- NAVBAR (ONLY PLACE FOR LOGIN / REGISTER) -->
+<!-- NAVBAR -->
 <nav class="navbar d-flex justify-content-between align-items-center">
-    <!-- LEFT : LOGO -->
     <a class="navbar-brand" href="/">
-        <span class="brand-logo">VC</span>
-        VRAJ Care
+        <span class="brand-logo">VC</span>VRAJ Care
     </a>
 
-    <!-- RIGHT : NAV BUTTONS -->
-    <div class="d-flex align-items-center">
+    <div class="d-flex align-items-center gap-1 flex-wrap">
+        <a href="/" class="nav-link">Home</a>
 
-        <!-- HOME BUTTON -->
-<a href="/" class="nav-link fw-semibold me-3">
-    Home
-</a>
-
-{% if user.is_authenticated %}
-
-    
-
-    <!-- USER APPOINTMENTS -->
-    <a href="{% url 'my_appointments' %}" class="nav-link fw-semibold me-3">
-        My Appointments
-    </a>
-
-    <!-- USERNAME -->
-    <span class="me-3 fw-semibold text-dark">
-        {{ user.username }}
-    </span>
-
-    <!-- LOGOUT (USER + DOCTOR BOTH) -->
-    <a href="{% url 'logout' %}" class="btn-main">
-        Logout
-    </a>
-
-{% else %}
-
-    <!-- USER LOGIN -->
-    <a href="{% url 'login' %}" class="nav-link fw-semibold me-3">
-        Login
-    </a>
-
-    <!-- USER REGISTER -->
-    <a href="{% url 'register' %}" class="btn-main me-3">
-        Register
-    </a>
-
-    <!-- DOCTOR LOGIN -->
-    <a href="{% url 'doctor_login' %}" class="btn btn-outline-primary fw-semibold">
-        Doctor Portal
-    </a>
-
-{% endif %}
-
-
-
+        {% if user.is_authenticated %}
+            {% if user.patient_profile %}
+                <a href="{% url 'patient_dashboard' %}" class="nav-link">
+                    <i class="bi bi-grid me-1"></i>Dashboard
+                </a>
+            {% endif %}
+            <a href="{% url 'book_appointment' %}" class="nav-link">
+                <i class="bi bi-calendar-plus me-1"></i>Book
+            </a>
+            <span class="nav-link text-muted">
+                <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+            </span>
+            <a href="{% url 'logout' %}" class="btn-main ms-1">Logout</a>
+        {% else %}
+            <a href="{% url 'login' %}" class="nav-link">Login</a>
+            <a href="{% url 'register' %}" class="btn-main">Register</a>
+            <a href="{% url 'doctor_login' %}" class="btn btn-outline-primary fw-semibold ms-1" style="border-radius:8px;padding:7px 16px;font-size:14px;">
+                Doctor Portal
+            </a>
+        {% endif %}
     </div>
 </nav>
 
-
+<!-- MAIN CONTENT -->
 <div class="page-content">
     {% if messages %}
-        <div class="container mb-4">
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        </div>
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show mb-3" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
     {% endif %}
     {% block content %}{% endblock %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>

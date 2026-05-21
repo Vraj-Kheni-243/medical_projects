@@ -1,96 +1,267 @@
 {% extends 'base.html' %}
+{% block title %}Doctor Dashboard — VRAJ Care{% endblock %}
+
 {% block content %}
+<div class="row g-4">
 
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-1">Doctor Dashboard</h2>
-            <p class="text-secondary mb-0">Dr. {{ doctor.display_name }} · {{ doctor.specialization }}</p>
+  <!-- ── LEFT: DOCTOR PROFILE ── -->
+  <div class="col-lg-3">
+    <div class="bg-white rounded-4 shadow-sm p-4 text-center border border-light animate">
+      {% if doctor.profile_picture %}
+        <img src="{{ doctor.profile_picture.url }}" class="rounded-circle mb-3"
+             style="width:90px;height:90px;object-fit:cover;border:3px solid #dbeafe;" alt="Profile">
+      {% else %}
+        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center mx-auto mb-3"
+             style="width:90px;height:90px;font-size:36px;color:#fff;">
+          <i class="bi bi-person-fill"></i>
         </div>
-        <a href="{% url 'doctor_logout' %}" class="btn btn-outline-primary">Logout</a>
-    </div>
+      {% endif %}
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags|default:'info' }}">
-                {{ message }}
-            </div>
+      <h5 class="fw-bold mb-0">Dr. {{ doctor.display_name }}</h5>
+      <p class="text-primary small fw-semibold mb-1">{{ doctor.specialization }}</p>
+      <p class="text-muted small mb-3">
+        <i class="bi bi-briefcase me-1"></i>{{ doctor.experience_years }} yrs experience
+      </p>
+
+      {% if doctor.rating > 0 %}
+      <div class="mb-3">
+        {% for i in "12345" %}
+          {% if forloop.counter <= doctor.rating %}
+            <i class="bi bi-star-fill text-warning"></i>
+          {% else %}
+            <i class="bi bi-star text-warning"></i>
+          {% endif %}
         {% endfor %}
-    {% endif %}
+        <span class="small text-muted ms-1">{{ doctor.rating }}/5</span>
+      </div>
+      {% endif %}
 
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="bg-white border rounded-3 p-3">
-                <div class="text-secondary">Pending</div>
-                <div class="fs-3 fw-bold text-warning">{{ pending_count }}</div>
-            </div>
+      {% if doctor.consultation_fee > 0 %}
+      <div class="badge bg-success bg-opacity-10 text-success px-3 py-2 mb-3">
+        <i class="bi bi-currency-rupee"></i>{{ doctor.consultation_fee }} / consultation
+      </div>
+      {% endif %}
+
+      <div class="text-start small mt-2">
+        <div class="mb-2">
+          <i class="bi bi-clock me-2 text-primary"></i>
+          {{ doctor.slot_start_time|time:"h:i A" }} – {{ doctor.slot_end_time|time:"h:i A" }}
         </div>
-        <div class="col-md-4">
-            <div class="bg-white border rounded-3 p-3">
-                <div class="text-secondary">Approved</div>
-                <div class="fs-3 fw-bold text-success">{{ approved_count }}</div>
-            </div>
+        <div class="mb-2">
+          <i class="bi bi-calendar-week me-2 text-primary"></i>
+          {{ doctor.available_days }}
         </div>
-        <div class="col-md-4">
-            <div class="bg-white border rounded-3 p-3">
-                <div class="text-secondary">Rejected</div>
-                <div class="fs-3 fw-bold text-danger">{{ rejected_count }}</div>
-            </div>
-        </div>
+      </div>
+
+      <a href="{% url 'doctor_logout' %}" class="btn btn-outline-danger btn-sm w-100 mt-3">
+        <i class="bi bi-box-arrow-right me-1"></i>Logout
+      </a>
     </div>
 
-    {% if appointments %}
-    <table class="table table-striped mt-4">
-        <thead>
-            <tr>
-                <th>Patient</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for appt in appointments %}
-            <tr>
-                <td>{{ appt.patient.username }}</td>
-                <td>{{ appt.date }}</td>
-                <td>{{ appt.status }}</td>
-                <td>
-                    {% if appt.status == "Pending" %}
-                        <form method="post"
-                              action="{% url 'approve_appointment' appt.id %}"
-                              style="display:inline;">
-                            {% csrf_token %}
-                            <button class="btn btn-success btn-sm">
-                                Approve
-                            </button>
-                        </form>
-
-                        <form method="post"
-                              action="{% url 'reject_appointment' appt.id %}"
-                              style="display:inline;">
-                            {% csrf_token %}
-                            <select name="reason" required>
-                                <option value="">Reason</option>
-                                {% for key, val in appt.REJECT_REASONS %}
-                                    <option value="{{ key }}">{{ val }}</option>
-                                {% endfor %}
-                            </select>
-                            <button class="btn btn-danger btn-sm">
-                                Reject
-                            </button>
-                        </form>
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-        <p>No appointments</p>
+    {% if doctor.bio %}
+    <div class="bg-white rounded-4 shadow-sm p-4 border border-light mt-3 animate delay-1">
+      <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-2 text-primary"></i>About</h6>
+      <p class="small text-muted mb-0">{{ doctor.bio }}</p>
+    </div>
     {% endif %}
-</div>
+  </div>
 
+  <!-- ── RIGHT: MAIN CONTENT ── -->
+  <div class="col-lg-9">
+
+    <!-- STAT CARDS -->
+    <div class="row g-3 mb-4 animate delay-1">
+      <div class="col-6 col-md-3">
+        <div class="card-stat">
+          <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-calendar-check"></i></div>
+          <div class="stat-value text-primary">{{ total_count }}</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card-stat">
+          <div class="stat-icon" style="background:#fef3c7;color:#92400e;"><i class="bi bi-hourglass-split"></i></div>
+          <div class="stat-value" style="color:#92400e;">{{ pending_count }}</div>
+          <div class="stat-label">Pending</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card-stat">
+          <div class="stat-icon" style="background:#dcfce7;color:#166534;"><i class="bi bi-check-circle"></i></div>
+          <div class="stat-value" style="color:#166534;">{{ approved_count }}</div>
+          <div class="stat-label">Approved</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="card-stat">
+          <div class="stat-icon" style="background:#dbeafe;color:#1e40af;"><i class="bi bi-calendar-day"></i></div>
+          <div class="stat-value" style="color:#1e40af;">{{ today_count }}</div>
+          <div class="stat-label">Today</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="bg-white rounded-4 shadow-sm border border-light animate delay-2">
+      <ul class="nav nav-tabs px-4 pt-3" id="dashTabs">
+        <li class="nav-item">
+          <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-pending">
+            Pending <span class="badge bg-warning text-dark ms-1">{{ pending_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-today">
+            Today <span class="badge bg-primary ms-1">{{ today_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#tab-all">
+            All
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content p-4">
+
+        <!-- PENDING TAB -->
+        <div class="tab-pane fade show active" id="tab-pending">
+          {% if pending_appointments %}
+            {% for appt in pending_appointments %}
+            <div class="border rounded-3 p-3 mb-3">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                  <h6 class="fw-bold mb-1">
+                    {{ appt.patient.get_full_name|default:appt.patient.username }}
+                  </h6>
+                  <div class="text-muted small">
+                    <i class="bi bi-calendar3 me-1"></i>{{ appt.date|date:"d M Y" }}
+                    &nbsp;·&nbsp;
+                    <i class="bi bi-clock me-1"></i>{{ appt.time_slot|time:"h:i A" }}
+                  </div>
+                  {% if appt.patient_notes %}
+                    <div class="mt-2 small text-secondary">
+                      <i class="bi bi-chat-left-text me-1"></i>{{ appt.patient_notes }}
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                  <!-- APPROVE -->
+                  <form method="post" action="{% url 'approve_appointment' appt.id %}">
+                    {% csrf_token %}
+                    <button class="btn btn-success btn-sm">
+                      <i class="bi bi-check-lg me-1"></i>Approve
+                    </button>
+                  </form>
+                  <!-- REJECT -->
+                  <button class="btn btn-danger btn-sm" data-bs-toggle="collapse"
+                          data-bs-target="#reject-{{ appt.id }}">
+                    <i class="bi bi-x-lg me-1"></i>Reject
+                  </button>
+                </div>
+              </div>
+              <!-- Reject reason collapse -->
+              <div class="collapse mt-3" id="reject-{{ appt.id }}">
+                <form method="post" action="{% url 'reject_appointment' appt.id %}">
+                  {% csrf_token %}
+                  <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <select name="reason" class="form-select form-select-sm" style="max-width:260px;" required>
+                      <option value="">Select reason…</option>
+                      {% for key, val in reject_reasons %}
+                        <option value="{{ key }}">{{ val }}</option>
+                      {% endfor %}
+                    </select>
+                    <button class="btn btn-danger btn-sm">Confirm Reject</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-check-circle fs-1 d-block mb-2 opacity-25"></i>
+              No pending appointments.
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- TODAY TAB -->
+        <div class="tab-pane fade" id="tab-today">
+          {% if today_appointments %}
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr><th>Patient</th><th>Time</th><th>Status</th><th>Notes</th></tr>
+                </thead>
+                <tbody>
+                  {% for appt in today_appointments %}
+                  <tr>
+                    <td class="fw-semibold">{{ appt.patient.get_full_name|default:appt.patient.username }}</td>
+                    <td>{{ appt.time_slot|time:"h:i A" }}</td>
+                    <td>
+                      <span class="badge rounded-pill badge-{{ appt.status|lower }}">{{ appt.status }}</span>
+                    </td>
+                    <td>
+                      <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse"
+                              data-bs-target="#notes-{{ appt.id }}">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+                      <div class="collapse mt-2" id="notes-{{ appt.id }}">
+                        <form method="post" action="{% url 'add_doctor_notes' appt.id %}">
+                          {% csrf_token %}
+                          <textarea name="doctor_notes" class="form-control form-control-sm mb-2" rows="2"
+                                    placeholder="Add consultation notes…">{{ appt.doctor_notes }}</textarea>
+                          <button class="btn btn-primary btn-sm">Save</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-calendar-x fs-1 d-block mb-2 opacity-25"></i>
+              No appointments today.
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- ALL TAB -->
+        <div class="tab-pane fade" id="tab-all">
+          {% if all_appointments %}
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr><th>Patient</th><th>Date</th><th>Time</th><th>Status</th><th>Reason</th></tr>
+                </thead>
+                <tbody>
+                  {% for appt in all_appointments %}
+                  <tr>
+                    <td class="fw-semibold">{{ appt.patient.get_full_name|default:appt.patient.username }}</td>
+                    <td>{{ appt.date|date:"d M Y" }}</td>
+                    <td>{{ appt.time_slot|time:"h:i A" }}</td>
+                    <td>
+                      <span class="badge rounded-pill badge-{{ appt.status|lower }}">{{ appt.status }}</span>
+                    </td>
+                    <td class="text-muted small">
+                      {% if appt.reject_reason %}{{ appt.get_reject_reason_display }}{% else %}—{% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-calendar-x fs-1 d-block mb-2 opacity-25"></i>
+              No appointments yet.
+            </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

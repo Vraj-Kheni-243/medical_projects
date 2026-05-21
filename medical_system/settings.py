@@ -108,12 +108,27 @@ WSGI_APPLICATION = 'medical_system.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+import dj_database_url  # noqa: E402  (installed via psycopg2-binary pull)
+
+_DATABASE_URL = os.getenv('DATABASE_URL', '')
+
+if _DATABASE_URL:
+    # Render PostgreSQL (production)
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=_DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
     }
-}
+else:
+    # Local development — SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -156,6 +171,10 @@ STATICFILES_DIRS = [
 ] if (BASE_DIR / 'static').exists() else []
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files (profile pictures, uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
